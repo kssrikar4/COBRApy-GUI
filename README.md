@@ -10,7 +10,7 @@ Streamlit Interface for Constraint-Based Metabolic Modeling
 
 ### Project Overview
 
-`COBRApy-GUI` is a Streamlit-based graphical user interface (GUI) designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
+`COBRApy_GUI` is a Streamlit-based graphical user interface (GUI) designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
 
 ![Preview](.github/GUI.png)
 
@@ -42,7 +42,7 @@ This application offers a suite of functionalities, with key `COBRApy` capabilit
 
 ### Installation & Usage
 
-To get started with `COBRApy-GUI`, follow these steps:
+To get started with `COBRApy_GUI`, follow these steps:
 
 1.  **Clone the repository:**
     ```bash
@@ -60,7 +60,7 @@ To get started with `COBRApy-GUI`, follow these steps:
     ```
 4.  **Run the Streamlit application:**
     ```bash
-    streamlit run COBRApy-GUI.py
+    streamlit run COBRApy_GUI.py
     ```
 
 This will open the application in your web browser.
