@@ -10,7 +10,7 @@ Streamlit Interface for Constraint-Based Metabolic Modeling
 
 ### Project Overview
 
-`COBRApy_GUI` is a Streamlit-based graphical user interface (GUI) designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
+`COBRApy-GUI` is a Streamlit-based graphical user interface (GUI) designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
 
 ![Preview](.github/GUI.png)
 
@@ -42,7 +42,7 @@ This application offers a suite of functionalities, with key `COBRApy` capabilit
 
 ### Installation & Usage
 
-To get started with `COBRApy_GUI`, follow these steps:
+To get started with `COBRApy-GUI`, follow these steps:
 
 1.  **Clone the repository:**
     ```bash
@@ -60,14 +60,14 @@ To get started with `COBRApy_GUI`, follow these steps:
     ```
 4.  **Run the Streamlit application:**
     ```bash
-    streamlit run COBRApy_GUI.py
+    streamlit run COBRApy-GUI.py
     ```
 
 This will open the application in your web browser.
 
 ### How to Use
 
-Once the `COBRApy_GUI` Streamlit application is running in your web browser, you can interact with it as follows:
+Once the `COBRApy-GUI` Streamlit application is running in your web browser, you can interact with it as follows:
 
   * **Navigation:** Use the **sidebar** on the left to switch between different functionalities like Model Management, Flux Analysis, Genetic Manipulations, etc.
   * **Loading Models:** In the "Model Management" section, you can either **upload your own SBML, JSON, or MATLAB model file**, or select from **pre-loaded common COBRApy models** (e.g., E. coli core) for quick exploration.
@@ -76,7 +76,7 @@ Once the `COBRApy_GUI` Streamlit application is running in your web browser, you
 
 ### Contributing
 
-We welcome contributions to `COBRApy_GUI`\! If you're interested in improving this tool, here's how you can help:
+We welcome contributions to `COBRApy-GUI`\! If you're interested in improving this tool, here's how you can help:
 
   * **Reporting Bugs:** If you encounter any issues, please open an issue on the [GitHub repository's Issues page](https://www.google.com/search?q=https://github.com/kssrikar4/COBRApy-GUI/issues).
   * **Suggesting Features:** Have an idea for a new feature or improvement? Feel free to open an issue to discuss it.
@@ -94,7 +94,7 @@ I express my sincere gratitude to the developers and communities behind:
     * [Streamlit Documentation](https://docs.streamlit.io/)
     * [Streamlit GitHub Repository](https://github.com/streamlit/streamlit)
 
-Their work has advanced the fields of computational biology and web development, respectively, and made projects like `COBRApy_GUI` feasible.
+Their work has advanced the fields of computational biology and web development, respectively, and made projects like `COBRApy-GUI` feasible.
 
 ### License
 
