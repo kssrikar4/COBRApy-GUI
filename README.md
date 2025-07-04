@@ -6,7 +6,9 @@ Streamlit Interface for Constraint-Based Metabolic Modeling
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Plotly](https://img.shields.io/badge/Plotly-27636C?style=for-the-badge&logo=plotly&logoColor=white)](https://plotly.com/)
 [![Git](https://img.shields.io/badge/Version%20Control-Git-F05032?style=for-the-badge&logo=git&logoColor=white)](https://git-scm.com/)
+[![Google Gemini](https://img.shields.io/badge/Google%20Gemini-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://gemini.google.com/)
 
 ### Project Overview
 
@@ -90,9 +92,14 @@ I express my sincere gratitude to the developers and communities behind:
 * **COBRApy:** The foundational Python package for constraint-based modeling. This GUI is built entirely to provide an accessible interface to its powerful functionalities.
     * [COBRApy Documentation](https://cobrapy.readthedocs.io/)
     * [COBRApy GitHub Repository](https://github.com/opencobra/cobrapy)
-* **Streamlit:** The incredible framework that made it possible to build this interactive web application with pure Python, enabling rapid development of intuitive user interfaces.
+* **Streamlit:** The framework that made it possible to build this interactive web application with pure Python, enabling development of this user interfaces.
     * [Streamlit Documentation](https://docs.streamlit.io/)
     * [Streamlit GitHub Repository](https://github.com/streamlit/streamlit)
+ * **Plotly:** For their versatile graphing libraries that enable the creation of interactive and high-quality visualizations within this application.
+      * [Plotly Documentation](https://plotly.com/python/)
+      * [Plotly GitHub Repository](https://github.com/plotly/plotly.py)
+  * **Google Gemini:** For its invaluable assistance in code analysis and execution, streamlining the development and refinement process of this project.
+      * [Google Gemini Information](https://gemini.google.com/)
 
 Their work has advanced the fields of computational biology and web development, respectively, and made projects like `COBRApy-GUI` feasible.
 
