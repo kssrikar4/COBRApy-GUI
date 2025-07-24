@@ -9,7 +9,7 @@
 
 ### Project Overview
 
-`COBRApy_GUI` is a Streamlit-based GUI designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
+`COBRApy-GUI` is a Streamlit-based GUI designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
 
 ![Preview](.github/GUI.png)
 
@@ -73,15 +73,15 @@ This will open the application in your web browser.
 
 Once the `COBRApy-GUI` Streamlit application is running in your web browser, you can interact with it as follows:
 
-* **Navigation:** Use the **sidebar** on the left to switch between different functionalities like Model Management, Flux Analysis, Genetic Manipulations, **Model Editing**, **Reaction Details**, **Multi-Model Support**, and more.
-* **Loading Models:** In the "Model Management" section, you can either **upload your own SBML, JSON, or MATLAB model file**, or select from **pre-loaded common `COBRApy` models** (e.g., E. coli core) for quick exploration. You can also **load and manage multiple models simultaneously** under the "Multi-Model Support" section.
-* **Performing Analyses:** Navigate to sections like "Flux Analysis" or "Genetic & Reaction Manipulations." You'll find input fields to set parameters (e.g., objective function, reaction bounds, gene names) to execute and analyze. **For specific reaction details, visit the "Reaction Details" section to explore individual reactions.**
-* **Model Editing:** In the "Model Editing" section, you can **add or remove reactions, metabolites, and genes**, or **easily modify exchange reaction bounds** to simulate diverse environmental conditions.
-* **Viewing Results:** Results will be displayed directly on the page, with interactive plots powered by Plotly, and options to download data. **Under "Multi-Model Support," you can also compare loaded models side-by-side.**
+* **Navigation:** Use the **sidebar** on the left to switch between different functionalities like Model Management, Flux Analysis, Genetic Manipulations, Model Editing, Reaction Details, Multi-Model Support, and more.
+* **Loading Models:** In the "Model Management" section, you can either upload your own SBML, JSON, or MATLAB model file, or select from pre-loaded common `COBRApy` models (e.g., E. coli core) for quick exploration. You can also load and manage multiple models simultaneously under the "Multi-Model Support" section.
+* **Performing Analyses:** Navigate to sections like "Flux Analysis" or "Genetic & Reaction Manipulations." You'll find input fields to set parameters (e.g., objective function, reaction bounds, gene names) to execute and analyze. For specific reaction details, visit the "Reaction Details" section to explore individual reactions.
+* **Model Editing:** In the "Model Editing" section, you can add or remove reactions, metabolites, and genes, or easily modify exchange reaction bounds to simulate diverse environmental conditions.
+* **Viewing Results:** Results will be displayed directly on the page, with interactive plots powered by Plotly, and options to download data. Under "Multi-Model Support," you can also compare loaded models side-by-side.
 
 ### Contributing
 
-We welcome contributions to `COBRApy-GUI`\! If you're interested in improving this tool, here's how you can help:
+If you're interested in improving this tool, here's how you can help:
 
   * **Reporting Bugs:** If you encounter any issues, please open an issue on the [GitHub repository's Issues page](https://github.com/kssrikar4/COBRApy-GUI/issues).
   * **Suggesting Features:** Have an idea for a new feature or improvement? Feel free to open an issue to discuss it.
