@@ -1,6 +1,6 @@
-streamlit
-cobra
-pandas
-numpy
-plotly
-
+cobra==0.29.1
+numpy==1.26.4
+numpydoc==1.8.0
+pandas==2.2.3
+plotly==6.2.0
+streamlit==1.46.1
