@@ -3,280 +3,246 @@ import cobra
 import pandas as pd
 import tempfile
 import os
-import re
-import numpy as np
-from cobra.flux_analysis import (
-    pfba, flux_variability_analysis,
-    single_gene_deletion, single_reaction_deletion,
-    double_gene_deletion, double_reaction_deletion,
-    find_blocked_reactions
-)
-from cobra.io import load_model, save_json_model
 import plotly.express as px
 import plotly.graph_objects as go
-import json
-import itertools
-import traceback
+from cobra.flux_analysis import pfba, flux_variability_analysis
+from cobra.io import load_model, save_json_model
 
-st.set_page_config(
-    page_title="COBRApy GUI",
-    page_icon="🧬",
-    layout="wide",
-    initial_sidebar_state="expanded"
+# Import all necessary functions from the correct modules
+from engine import (
+    display_model_summary,
+    get_reaction_options,
+    get_metabolite_options,
+    get_gene_options,
+    safe_set_bounds,
+    load_model_from_file,
+    perform_fba,
+    plot_growth_impact,
+    validate_genes
 )
 
-if 'models' not in st.session_state:
-    st.session_state.models = {}
-if 'current_model_name' not in st.session_state:
-    st.session_state.current_model_name = None
-if 'fba_solutions' not in st.session_state:
-    st.session_state.fba_solutions = {}
-if 'analysis_mode' not in st.session_state:
-    st.session_state.analysis_mode = "Single Model Analysis"
-if 'summary_display_counter' not in st.session_state:
-    st.session_state.summary_display_counter = 0
+from utils import (
+    resolve_reaction_id,
+    resolve_ddca_shortcut,
+    extract_id
+)
 
-COMPARTMENT_NAMES = {
-    'c': 'Cytosol',
-    'e': 'Extracellular',
-    'p': 'Periplasm',
-    'm': 'Mitochondria',
-    'l': 'Lysosome',
-    'n': 'Nucleus',
-    'r': 'Endoplasmic Reticulum',
-    'g': 'Golgi Apparatus',
-    'v': 'Vacuole',
-    'x': 'Peroxisome',
-    'i': 'Inner Membrane',
-    'o': 'Outer Membrane',
-    'h': 'Hydrogenosome',
-    'f': 'Flagellum',
-    'w': 'Cell Wall',
-    'u': 'Unknown/Unassigned',
-}
+def render_intro_content():
+    """Render the introduction content."""
+    st.title("🧬 Welcome to COBRApy GUI")
+    st.markdown("This Streamlit-based graphical user interface (GUI) is designed to simplify and enhance the interaction with `COBRApy`, a powerful Python package for constraint-based reconstruction and analysis of biological networks.")
 
-def load_model_from_file(uploaded_file):
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_path = tmp_file.name
+    with st.expander("About"):
+        st.markdown("""
+        ### **Project Overview**
+        `COBRApy_GUI` is a Streamlit-based graphical user interface (GUI) designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
 
-        if uploaded_file.name.endswith('.xml'):
-            model = cobra.io.read_sbml_model(tmp_path)
-        elif uploaded_file.name.endswith('.json'):
-            model = cobra.io.load_json_model(tmp_path)
-        elif uploaded_file.name.endswith('.mat'):
-            model = cobra.io.load_matlab_model(tmp_path)
-        else:
-            st.error("Unsupported file format. Please use SBML (.xml), JSON (.json), or MATLAB (.mat)")
-            return None
+        ### **Features**
+        This application offers a suite of functionalities, with key `COBRApy` capabilities:
 
-        os.unlink(tmp_path)
-        st.success("Model loaded successfully!")
-        return model
+        * **Model Management:**
+            * **Loading:** Supports loading metabolic models from SBML (.xml), JSON (.json), and MATLAB (.mat) formats. Includes built-in access to common `cobra` models (e.g., E. coli core, iJO1366, Recon3D).
+            * **Summary & Inspection:** Provides a detailed overview of loaded models, including counts of reactions, metabolites, and genes, along with objective function details and snippets of model components.
+            * **Export:** Allows users to export modified models back into SBML, JSON, or MATLAB formats.
+        * **Flux Analysis:**
+            * **Flux Balance Analysis (FBA):** Perform FBA to determine optimal flux distributions, with options to set objective functions and adjust reaction bounds. Visualizes flux distributions and active pathways.
+            * **Parsimonious FBA (pFBA):** Execute pFBA to identify the most parsimonious (minimal total flux) solution achieving optimal growth, offering insights into metabolic efficiency. Includes FBA vs. pFBA flux comparison.
+            * **Flux Variability Analysis (FVA):** Calculate the minimum and maximum possible flux for individual or all reactions, providing insights into reaction flexibility and robustness. Visualizes flux ranges.
+            * **Set Reaction Bounds:** Directly adjust the lower and upper bounds of individual reactions to simulate specific environmental conditions or genetic modifications.
+        * **Genetic & Reaction Manipulations:**
+            * **Gene Deletion Analysis:** Simulate the effects of single or double gene knockouts on the model's objective (e.g., growth rate), identifying essential genes and synthetic lethals.
+            * **Reaction Deletion Analysis:** Perform single or double reaction deletions to assess their impact on model performance.
+            * **Find Essential Genes:** A dedicated tool to identify genes whose deletion leads to a significant drop in growth rate (lethal).
+            * **Gene/Reaction Set Simulation:** Allows defining and simulating the deletion of multiple custom gene sets or reaction sets (pathway blocks) in batch.
+            * Visualizes growth impact of deletions and identifies lethal knockouts.
+        * **Model Diagnostics:**
+            * **Blocked Reactions:** Identify and optionally remove reactions that cannot carry any flux under defined conditions, aiding in model curation.
+            * **Consistency Check:** Verify the solvability and consistency of the metabolic model.
+        * **Reaction Details:**
+            * **Explore individual reactions:** View detailed information about any reaction, including its equation, involved metabolites with their stoichiometry, and associated genes with their GPR rules.
+        * **Data Export & Visualization:**
+            * Download FBA flux distributions, FVA results, and gene/reaction deletion analysis reports as CSV files for external analysis.
+            * Integrated Plotly visualizations for flux distributions, FVA ranges, and growth rate impacts.
+        * **Multi-Model Support:**
+            * Load and manage multiple models simultaneously.
+            * **Compare Models:** Select two loaded models and compare their objective values, top 10 fluxes, essential gene overlap, and content differences (reactions, metabolites, genes).
+        """)
 
-    except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-        return None
+def render_model_loading_section_single_mode():
+    """Render model loading section for single model mode."""
+    st.header("📤 Upload a metabolic model or create a new one.")
 
-def display_model_summary(model, unique_key_suffix=""):
+    col1, col2 = st.columns(2)
+    with col1:
+        model_source = st.radio("Model source:", ["Built-in", "Upload File", "URL", "Create Blank Model"], key="single_load_source_radio")
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Reactions", len(model.reactions))
-    col2.metric("Metabolites", len(model.metabolites))
-    col3.metric("Genes", len(model.genes))
+        if model_source == "Built-in":
+            builtin_models = {
+                "E. coli core": "e_coli_core",
+                "Textbook E. coli": "textbook",
+                "Salmonella core": "salmonella",
+                "iJO1366 (E. coli)": "iJO1366",
+                "Recon3D (Human)": "Recon3D"
+            }
+            selected_model_key = st.selectbox("Select model", list(builtin_models.keys()), key="builtin_model_select_single")
+            model_label = st.text_input("Label for this model", value=selected_model_key, key="builtin_model_label_single")
 
-    objective = model.objective
-    if isinstance(objective, str):
-        st.write(f"**Objective Function:** {objective}")
-    elif hasattr(objective, 'expression'):
-        st.write(f"**Objective Function:** {objective.expression}")
+            if st.button("Load Built-in Model", key="load_builtin_btn_single"):
+                if model_label in st.session_state.models:
+                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
+                else:
+                    try:
+                        new_model = load_model(builtin_models[selected_model_key])
+                        st.session_state.models[model_label] = new_model
+                        st.session_state.current_model_name = model_label
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error loading model: {str(e)}")
+
+        elif model_source == "Upload File":
+            uploaded_file = st.file_uploader(
+                "Upload model (SBML/JSON/MAT)",
+                type=["xml", "json", "mat"],
+                help="Supported formats: SBML (.xml), JSON (.json), MATLAB (.mat)",
+                key="uploaded_file_uploader_single"
+            )
+            model_label = st.text_input("Label for this model", value=uploaded_file.name.split('.')[0] if uploaded_file else "uploaded_model", key="uploaded_model_label_single")
+
+            if st.button("Load Uploaded Model", key="load_uploaded_btn_single") and uploaded_file:
+                if model_label in st.session_state.models:
+                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
+                else:
+                    new_model = load_model_from_file(uploaded_file)
+                    if new_model:
+                        st.session_state.models[model_label] = new_model
+                        st.session_state.current_model_name = model_label
+                        st.rerun()
+
+        elif model_source == "URL":
+            url = st.text_input(
+                "Model URL",
+                placeholder="e.g., http://bigg.ucsd.edu/models/e_coli_core.xml",
+                help="Enter direct download URL for model file",
+                key="url_input_single"
+            )
+            model_label = st.text_input("Label for this model", value="url_model", key="url_model_label_single")
+
+            if st.button("Load from URL", key="load_url_btn_single"):
+                if model_label in st.session_state.models:
+                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
+                else:
+                    st.warning("URL loading requires additional implementation")
+
+        elif model_source == "Create Blank Model":
+            blank_model_label = st.text_input("Label for new blank model", value="new_model", key="blank_model_label_input_single")
+            if st.button("Create Blank Model", key="create_blank_model_btn_single"):
+                if blank_model_label in st.session_state.models:
+                    st.warning(f"Model with label '{blank_model_label}' already exists. Please choose a different label.")
+                else:
+                    new_blank_model = cobra.Model(id=blank_model_label)
+                    st.session_state.models[blank_model_label] = new_blank_model
+                    st.session_state.current_model_name = blank_model_label
+                    st.success(f"Blank model '{blank_model_label}' created. Go to 'Model Editing' to build it out.")
+                    st.rerun()
+
+    if st.session_state.current_model_name and st.session_state.current_model_name in st.session_state.models:
+        st.subheader(f"Summary for Active Model: {st.session_state.current_model_name}")
+        display_model_summary(st.session_state.models[st.session_state.current_model_name], unique_key_suffix="active")
+
+def render_model_loading_section_multi_mode():
+    """Render model loading section for multi-model mode."""
+    st.header("📤 Upload a metabolic model or create a new one.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        model_source = st.radio("Model source:", ["Built-in", "Upload File", "URL", "Create Blank Model"], key="multi_model_source_radio")
+
+        if model_source == "Built-in":
+            builtin_models = {
+                "E. coli core": "e_coli_core",
+                "Textbook E. coli": "textbook",
+                "Salmonella core": "salmonella",
+                "iJO1366 (E. coli)": "iJO1366",
+                "Recon3D (Human)": "Recon3D"
+            }
+            selected_model_key = st.selectbox("Select model", list(builtin_models.keys()), key="multi_builtin_model_select")
+            model_label = st.text_input("Label for this model", value=selected_model_key, key="multi_builtin_model_label")
+
+            if st.button("Load Built-in Model", key="multi_load_builtin_btn"):
+                if model_label in st.session_state.models:
+                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
+                else:
+                    try:
+                        new_model = load_model(builtin_models[selected_model_key])
+                        st.session_state.models[model_label] = new_model
+                        st.success(f"Loaded built-in model: {selected_model_key} as '{model_label}'")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error loading model: {str(e)}")
+
+        elif model_source == "Upload File":
+            uploaded_file = st.file_uploader(
+                "Upload model (SBML/JSON/MAT)",
+                type=["xml", "json", "mat"],
+                help="Supported formats: SBML (.xml), JSON (.json), MATLAB (.mat)",
+                key="multi_uploaded_file_uploader"
+            )
+            model_label = st.text_input("Label for this model", value=uploaded_file.name.split('.')[0] if uploaded_file else "uploaded_model", key="multi_uploaded_model_label")
+
+            if st.button("Load Uploaded Model", key="multi_load_uploaded_btn") and uploaded_file:
+                if model_label in st.session_state.models:
+                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
+                else:
+                    new_model = load_model_from_file(uploaded_file)
+                    if new_model:
+                        st.session_state.models[model_label] = new_model
+                        st.rerun()
+
+        elif model_source == "URL":
+            url = st.text_input(
+                "Model URL",
+                placeholder="e.g., http://bigg.ucsd.edu/models/e_coli_core.xml",
+                help="Enter direct download URL for model file",
+                key="multi_url_input"
+            )
+            model_label = st.text_input("Label for this model", value="url_model", key="multi_url_model_label")
+
+            if st.button("Load from URL", key="multi_load_url_btn"):
+                if model_label in st.session_state.models:
+                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
+                else:
+                    st.warning("URL loading requires additional implementation")
+
+        elif model_source == "Create Blank Model":
+            blank_model_label = st.text_input("Label for new blank model", value="new_model", key="multi_blank_model_label_input")
+            if st.button("Create Blank Model", key="multi_create_blank_model_btn"):
+                if blank_model_label in st.session_state.models:
+                    st.warning(f"Model with label '{blank_model_label}' already exists. Please choose a different label.")
+                else:
+                    new_blank_model = cobra.Model(id=blank_model_label)
+                    st.session_state.models[blank_model_label] = new_blank_model
+                    st.success(f"Blank model '{blank_model_label}' created.")
+                    st.rerun()
+
+    st.subheader("Currently Loaded Models")
+    if st.session_state.models:
+        for name, model_obj in st.session_state.models.items():
+            st.write(f"- **{name}**: {len(model_obj.reactions)} reactions, {len(model_obj.metabolites)} metabolites, {len(model_obj.genes)} genes")
+            with st.expander(f"View Summary for {name}", expanded=False):
+                display_model_summary(model_obj, unique_key_suffix=f"loaded_{name}")
+            if st.button(f"Remove {name}", key=f"remove_model_{name}"):
+                del st.session_state.models[name]
+                if name in st.session_state.fba_solutions:
+                    del st.session_state.fba_solutions[name]
+                if st.session_state.current_model_name == name:
+                    st.session_state.current_model_name = None
+                st.success(f"Model '{name}' removed.")
+                st.rerun()
     else:
-        st.write(f"**Objective Function:** Not explicitly set or complex.")
-
-    with st.expander("Reactions Overview"):
-        reaction_data = []
-        for rxn in model.reactions[:10]:
-            reaction_data.append({
-                "ID": rxn.id,
-                "Name": rxn.name if rxn.name else "N/A",
-                "Equation": rxn.build_reaction_string(),
-                "Bounds": f"{rxn.lower_bound} to {rxn.upper_bound}"
-            })
-        st.dataframe(pd.DataFrame(reaction_data), hide_index=True)
-
-    with st.expander("Metabolites Overview"):
-        all_compartments = sorted(list(set(m.compartment for m in model.metabolites if m.compartment)))
-        display_compartment_options = ["All"] + [COMPARTMENT_NAMES.get(c, c) for c in all_compartments]
-        
-        selected_compartment_display = st.selectbox(
-            "View metabolites by compartment",
-            display_compartment_options,
-            key=f"met_compartment_select_{model.id}_{unique_key_suffix}"
-        )
-        
-        selected_compartment_filter = selected_compartment_display
-        if selected_compartment_display != "All":
-            found_original_id = False
-            for comp_id, comp_name in COMPARTMENT_NAMES.items():
-                if comp_name == selected_compartment_display:
-                    selected_compartment_filter = comp_id
-                    found_original_id = True
-                    break
-            if not found_original_id:
-                selected_compartment_filter = selected_compartment_display
-
-        met_data = []
-        for met in model.metabolites:
-            if selected_compartment_filter == "All" or met.compartment == selected_compartment_filter:
-                met_data.append({
-                    "ID": met.id,
-                    "Name": met.name if met.name else "N/A",
-                    "Compartment": COMPARTMENT_NAMES.get(met.compartment, met.compartment) if met.compartment else "N/A"
-                })
-        st.dataframe(pd.DataFrame(met_data).head(100), hide_index=True)
-
-    with st.expander("Genes Overview"):
-        gene_data = []
-        for gene in model.genes[:10]:
-            gene_data.append({
-                "ID": gene.id,
-                "Name": gene.name if gene.name else "N/A",
-                "Reactions": len(gene.reactions)
-            })
-        st.dataframe(pd.DataFrame(gene_data), hide_index=True)
-
-def get_reaction_options(model):
-    return [f"{rxn.name} ({rxn.id})" if rxn.name else rxn.id for rxn in model.reactions]
-
-def get_metabolite_options(model):
-    return [f"{met.name} ({met.id})" if met.name else met.id for met in model.metabolites]
-
-def get_gene_options(model):
-    return [f"{gene.name} ({gene.id})" if gene.name else gene.id for gene in model.genes]
-
-def extract_id(option_string):
-    match = re.search(r'\((.*?)\)', option_string)
-    if match:
-        return match.group(1)
-    return option_string
-
-def validate_genes(model, gene_ids):
-    valid_ids = []
-    for gid in gene_ids:
-        try:
-            gene_obj = model.genes.get_by_id(gid)
-            valid_ids.append(gene_obj.id)
-        except KeyError:
-            st.warning(f"Gene {gid} not found in model. Skipping...")
-    return valid_ids
-
-def perform_fba(model, objective_reaction_id=None):
-    try:
-        temp_model = model.copy()
-
-        if objective_reaction_id and objective_reaction_id in temp_model.reactions:
-            temp_model.objective = objective_reaction_id
-        else:
-            st.warning(f"Objective reaction '{objective_reaction_id}' not found or not specified. Using model's current objective: {temp_model.objective.expression}")
-            
-        solution = temp_model.optimize()
-        st.session_state.fba_solutions[model.id] = solution
-
-        if solution.status == "optimal":
-            st.success(f"Optimization successful! Objective value: {solution.objective_value:.4f}")
-
-            fluxes = solution.fluxes
-            nonzero_fluxes = fluxes[abs(fluxes) > 1e-6].sort_values(key=abs, ascending=False)
-
-            st.subheader("Top Active Fluxes")
-            flux_df_display = nonzero_fluxes.reset_index()
-            flux_df_display.columns = ['Reaction ID', 'Flux']
-            flux_df_display['Reaction ID'] = flux_df_display['Reaction ID'].astype(str)
-            flux_df_display['Reaction Name'] = flux_df_display['Reaction ID'].apply(
-                lambda x: temp_model.reactions.get_by_id(x).name if x in temp_model.reactions else "N/A"
-            )
-            st.dataframe(flux_df_display[['Reaction ID', 'Reaction Name', 'Flux']].head(10), hide_index=True)
-
-            fig = px.histogram(
-                fluxes,
-                nbins=50,
-                title="Flux Distribution",
-                labels={'value': 'Flux Value'}
-            )
-            fig.update_layout(
-                xaxis_title="Flux Value",
-                yaxis_title="Count",
-                template='plotly_white'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-            csv = flux_df_display.to_csv(index=False)
-            st.download_button(
-                label="Download Full Flux Distribution",
-                data=csv,
-                file_name=f'{model.id}_fba_fluxes.csv',
-                mime='text/csv'
-            )
-        else:
-            st.error(f"Optimization failed: {solution.status}")
-
-        return solution
-
-    except Exception as e:
-        st.error(f"FBA failed: {str(e)}")
-        return None
-
-def plot_growth_impact(results_df, title, id_col_name="Gene ID"):
-    if results_df.empty:
-        return
-
-    results_df = results_df.copy()
-    results_df.sort_values("Growth Rate", ascending=False, inplace=True)
-
-    colors = ['red' if rate < 1e-6 else 'green' for rate in results_df["Growth Rate"]]
-
-    plot_x_axis_col = None
-    if "Gene Display" in results_df.columns:
-        plot_x_axis_col = "Gene Display"
-    elif "Reaction Display" in results_df.columns:
-        plot_x_axis_col = "Reaction Display"
-    elif id_col_name in results_df.columns:
-        plot_x_axis_col = id_col_name
-    elif f"{id_col_name.replace(' ID', '')} Display" in results_df.columns:
-        plot_x_axis_col = f"{id_col_name.replace(' ID', '')} Display"
-    else:
-        st.warning(f"Could not find suitable display column for plotting. Using '{id_col_name}'.")
-        plot_x_axis_col = id_col_name
-
-    plot_x_axis = results_df[plot_x_axis_col]
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            x=plot_x_axis,
-            y=results_df["Growth Rate"],
-            marker_color=colors,
-            text=results_df["Growth Rate"].round(6),
-            textposition='auto'
-        )
-    )
-
-    fig.update_layout(
-        title=title,
-        xaxis_title=plot_x_axis_col.replace(' Display', '').replace(' ID', ''),
-        yaxis_title="Growth Rate",
-        template='plotly_white',
-        height=500,
-        hovermode='x'
-    )
-    fig.update_xaxes(tickangle=45)
-    fig.add_hline(y=1e-6, line_dash="dash", line_color="gray")
-
-    st.plotly_chart(fig, use_container_width=True)
-
+        st.info("No models loaded yet.")
 
 def single_model_analysis_tabs():
+    """Render single model analysis tabs."""
     model_names = list(st.session_state.models.keys())
     
     if model_names:
@@ -320,8 +286,8 @@ def single_model_analysis_tabs():
         )
 
         if selected_reaction_display:
-            rxn_id = extract_id(selected_reaction_display)
             try:
+                rxn_id = resolve_reaction_id(selected_reaction_display, model)
                 reaction = model.reactions.get_by_id(rxn_id)
 
                 st.subheader(f"Details for: {reaction.name} ({reaction.id})")
@@ -358,8 +324,8 @@ def single_model_analysis_tabs():
                 else:
                     st.info("No genes associated with this reaction.")
 
-            except KeyError:
-                st.error(f"Reaction '{rxn_id}' not found in the model.")
+            except ValueError as e:
+                st.error(str(e))
             except Exception as e:
                 st.error(f"Error retrieving reaction details: {str(e)}")
                 st.exception(e)
@@ -397,12 +363,20 @@ def single_model_analysis_tabs():
                 key="fba_objective_select",
                 help="Select the reaction to optimize"
             )
-            objective_rxn_id = extract_id(objective_display)
+            try:
+                objective_rxn_id = resolve_reaction_id(objective_display, model)
+            except ValueError as e:
+                st.error(str(e))
+                st.stop()
 
             st.subheader("Adjust Reaction Bounds")
             rxn_display = st.selectbox("Select reaction to modify", reaction_options, key="set_bounds_rxn_select_fba")
-            rxn_id_for_bounds = extract_id(rxn_display)
-            selected_rxn = model.reactions.get_by_id(rxn_id_for_bounds)
+            try:
+                rxn_id_for_bounds = resolve_reaction_id(rxn_display, model)
+                selected_rxn = model.reactions.get_by_id(rxn_id_for_bounds)
+            except ValueError as e:
+                st.error(str(e))
+                st.stop()
 
             col_lb, col_ub = st.columns(2)
             with col_lb:
@@ -421,8 +395,36 @@ def single_model_analysis_tabs():
                 )
 
             if st.button("Apply Bounds", key=f"apply_bounds_btn_{rxn_id_for_bounds}_fba"):
-                selected_rxn.bounds = (new_lb, new_ub)
-                st.success(f"Updated bounds for {rxn_id_for_bounds}: [{new_lb}, {new_ub}]")
+                try:
+                    r = safe_set_bounds(model, rxn_id_for_bounds, lb=new_lb, ub=new_ub)
+                    st.success(f"Updated bounds for {r.id}: [{r.lower_bound}, {r.upper_bound}]")
+                except ValueError as e:
+                    st.error(str(e))
+
+            if st.button("Enable laurate uptake & transport", key="enable_laurate_btn"):
+                picks = resolve_ddca_shortcut("laurate", model)
+                msgs = []
+                for rid in picks:
+                    if rid == "EX_ddca_e":
+                        try:
+                            safe_set_bounds(model, rid, lb=-10.0, ub=1000.0)
+                            msgs.append(f"{rid} opened (uptake enabled)")
+                        except ValueError:
+                            st.warning(f"Reaction {rid} not found in model")
+                    elif rid == "DDCAt2pp":
+                        try:
+                            r = model.reactions.get_by_id(rid)
+                            if r.lower_bound == 0 and r.upper_bound == 0:
+                                safe_set_bounds(model, rid, lb=-1000.0, ub=1000.0)
+                                msgs.append(f"{rid} opened (transport enabled)")
+                            else:
+                                msgs.append(f"{rid} already open (lb={r.lower_bound}, ub={r.upper_bound})")
+                        except ValueError:
+                            st.warning(f"Reaction {rid} not found in model")
+                if msgs:
+                    st.success("; ".join(msgs))
+                else:
+                    st.warning("Laurate reactions not found in this model.")
 
             if st.button("Run FBA", type="primary", key="run_fba_btn_main"):
                 with st.spinner("Performing Flux Balance Analysis..."):
@@ -506,7 +508,14 @@ def single_model_analysis_tabs():
                 help="Analyze specific reactions or all reactions in model",
                 key="fva_rxn_select"
             )
-            reaction_ids = [extract_id(r) for r in reactions] if reactions else []
+            reaction_ids = []
+            for r_display in reactions:
+                try:
+                    rid = resolve_reaction_id(r_display, model)
+                    reaction_ids.append(rid)
+                except ValueError as e:
+                    st.error(str(e))
+                    st.stop()
 
             fraction = st.slider(
                 "Fraction of Optimum",
@@ -614,6 +623,7 @@ def single_model_analysis_tabs():
                         with st.spinner("Analyzing gene deletions..."):
                             try:
                                 if deletion_type == "Single":
+                                    from cobra.flux_analysis import single_gene_deletion
                                     deletion_results = single_gene_deletion(model, gene_ids)
 
                                     results_df = pd.DataFrame({
@@ -634,6 +644,7 @@ def single_model_analysis_tabs():
                                     if len(gene_ids) < 2:
                                         st.error("Please select at least 2 genes for double deletion")
                                         return
+                                    from cobra.flux_analysis import double_gene_deletion
                                     deletion_results = double_gene_deletion(model, gene_ids)
 
                                     results_df = pd.DataFrame({
@@ -679,7 +690,14 @@ def single_model_analysis_tabs():
                 reaction_options,
                 key="single_double_rxn_select"
             )
-            reaction_ids = [extract_id(r) for r in selected_reactions]
+            reaction_ids = []
+            for r_display in selected_reactions:
+                try:
+                    rid = resolve_reaction_id(r_display, model)
+                    reaction_ids.append(rid)
+                except ValueError as e:
+                    st.error(str(e))
+                    st.stop()
 
             if st.button("Simulate Reaction Deletions", key="run_rxn_deletion_btn"):
                 if not reaction_ids:
@@ -688,6 +706,7 @@ def single_model_analysis_tabs():
                     with st.spinner("Analyzing reaction deletions..."):
                         try:
                             if deletion_type_rxn == "Single":
+                                from cobra.flux_analysis import single_reaction_deletion
                                 deletion_results = single_reaction_deletion(model, reaction_ids)
                                 results_df = pd.DataFrame({
                                     "Reaction ID": deletion_results.index.get_level_values(0).astype(str),
@@ -706,6 +725,7 @@ def single_model_analysis_tabs():
                                 if len(reaction_ids) < 2:
                                     st.error("Please select at least 2 reactions for double deletion")
                                     return
+                                from cobra.flux_analysis import double_reaction_deletion
                                 deletion_results = double_reaction_deletion(model, reaction_ids)
 
                                 results_df = pd.DataFrame({
@@ -749,6 +769,7 @@ def single_model_analysis_tabs():
             if st.button("Run Essential Gene Analysis", key="run_essential_gene_btn"):
                 with st.spinner("Finding essential genes..."):
                     try:
+                        from cobra.flux_analysis import single_gene_deletion
                         gene_objects = [model.genes.get_by_id(gid) for gid in model.genes.list_attr("id")]
                         essential_results = single_gene_deletion(model, gene_list=gene_objects)
                         gene_ids = [gene.id for gene in gene_objects]
@@ -891,7 +912,15 @@ def single_model_analysis_tabs():
                     reaction_options,
                     key=f"rxn_set_select_{i}"
                 )
-                rxn_sets.append((set_name, [extract_id(r) for r in selected_rxns_in_set]))
+                rxn_ids = []
+                for r_display in selected_rxns_in_set:
+                    try:
+                        rid = resolve_reaction_id(r_display, model)
+                        rxn_ids.append(rid)
+                    except ValueError as e:
+                        st.error(str(e))
+                        st.stop()
+                rxn_sets.append((set_name, rxn_ids))
 
             if st.button("Run Reaction Set Deletions", key="run_rxn_set_deletion_btn"):
                 if not rxn_sets:
@@ -978,6 +1007,7 @@ def single_model_analysis_tabs():
             if st.button("Find Blocked Reactions", key="find_blocked_rxns_btn"):
                 with st.spinner("Identifying blocked reactions..."):
                     try:
+                        from cobra.flux_analysis import find_blocked_reactions
                         blocked = find_blocked_reactions(model)
                         if len(blocked) > 0:
                             st.warning(f"Found {len(blocked)} blocked reactions")
@@ -1063,12 +1093,21 @@ def single_model_analysis_tabs():
         with col2:
             st.subheader("Flux Visualization")
             
-            if st.session_state.current_model_name in st.session_state.fba_solutions:
-                st.success("Flux solution available for visualization")
+            # FIX: Check using both current_model_name and model.id
+            has_fba_solution = False
+            fba_solution = None
+            
+            if st.session_state.current_model_name and st.session_state.current_model_name in st.session_state.fba_solutions:
+                has_fba_solution = True
                 fba_solution = st.session_state.fba_solutions[st.session_state.current_model_name]
+            elif model.id in st.session_state.fba_solutions:
+                has_fba_solution = True
+                fba_solution = st.session_state.fba_solutions[model.id]
+            
+            if has_fba_solution and fba_solution:
+                st.success("Flux solution available for visualization")
                 flux_df = fba_solution.fluxes.reset_index()
-                flux_df.columns = ['Reaction ID', 'Flux']
-                
+                flux_df.columns = ['Reaction ID', 'Flux']                
                 flux_df['Reaction ID'] = flux_df['Reaction ID'].astype(str)
                 flux_df['Reaction Name'] = flux_df['Reaction ID'].apply(
                     lambda x: model.reactions.get_by_id(x).name if x in model.reactions else "N/A"
@@ -1088,6 +1127,7 @@ def single_model_analysis_tabs():
                 ).head(10)
                 
                 if not top_fluxes.empty:
+                    import plotly.express as px
                     fig = px.bar(
                         top_fluxes,
                         x='Reaction Name',
@@ -1109,178 +1149,8 @@ def single_model_analysis_tabs():
             else:
                 st.warning("Run FBA first to generate flux solution")
 
-def render_model_loading_section_single_mode():
-    st.header("📤 Upload a metabolic model or create a new one.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        model_source = st.radio("Model source:", ["Built-in", "Upload File", "URL", "Create Blank Model"], key="single_load_source_radio")
-
-        if model_source == "Built-in":
-            builtin_models = {
-                "E. coli core": "e_coli_core",
-                "Textbook E. coli": "textbook",
-                "Salmonella core": "salmonella",
-                "iJO1366 (E. coli)": "iJO1366",
-                "Recon3D (Human)": "Recon3D"
-            }
-            selected_model_key = st.selectbox("Select model", list(builtin_models.keys()), key="builtin_model_select_single")
-            model_label = st.text_input("Label for this model", value=selected_model_key, key="builtin_model_label_single")
-
-            if st.button("Load Built-in Model", key="load_builtin_btn_single"):
-                if model_label in st.session_state.models:
-                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
-                else:
-                    try:
-                        new_model = load_model(builtin_models[selected_model_key])
-                        st.session_state.models[model_label] = new_model
-                        st.session_state.current_model_name = model_label
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error loading model: {str(e)}")
-
-        elif model_source == "Upload File":
-            uploaded_file = st.file_uploader(
-                "Upload model (SBML/JSON/MAT)",
-                type=["xml", "json", "mat"],
-                help="Supported formats: SBML (.xml), JSON (.json), MATLAB (.mat)",
-                key="uploaded_file_uploader_single"
-            )
-            model_label = st.text_input("Label for this model", value=uploaded_file.name.split('.')[0] if uploaded_file else "uploaded_model", key="uploaded_model_label_single")
-
-            if st.button("Load Uploaded Model", key="load_uploaded_btn_single") and uploaded_file:
-                if model_label in st.session_state.models:
-                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
-                else:
-                    new_model = load_model_from_file(uploaded_file)
-                    if new_model:
-                        st.session_state.models[model_label] = new_model
-                        st.session_state.current_model_name = model_label
-                        st.rerun()
-
-        elif model_source == "URL":
-            url = st.text_input(
-                "Model URL",
-                placeholder="e.g., http://bigg.ucsd.edu/models/e_coli_core.xml",
-                help="Enter direct download URL for model file",
-                key="url_input_single"
-            )
-            model_label = st.text_input("Label for this model", value="url_model", key="url_model_label_single")
-
-            if st.button("Load from URL", key="load_url_btn_single"):
-                if model_label in st.session_state.models:
-                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
-                else:
-                    st.warning("URL loading requires additional implementation")
-
-        elif model_source == "Create Blank Model":
-            blank_model_label = st.text_input("Label for new blank model", value="new_model", key="blank_model_label_input_single")
-            if st.button("Create Blank Model", key="create_blank_model_btn_single"):
-                if blank_model_label in st.session_state.models:
-                    st.warning(f"Model with label '{blank_model_label}' already exists. Please choose a different label.")
-                else:
-                    new_blank_model = cobra.Model(id=blank_model_label)
-                    st.session_state.models[blank_model_label] = new_blank_model
-                    st.session_state.current_model_name = blank_model_label
-                    st.success(f"Blank model '{blank_model_label}' created. Go to 'Model Editing' to build it out.")
-                    st.rerun()
-
-    if st.session_state.current_model_name and st.session_state.current_model_name in st.session_state.models:
-        st.subheader(f"Summary for Active Model: {st.session_state.current_model_name}")
-        display_model_summary(st.session_state.models[st.session_state.current_model_name], unique_key_suffix="active")
-    
-def render_model_loading_section_multi_mode():
-    st.header("📤 Upload a metabolic model or create a new one.")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        model_source = st.radio("Model source:", ["Built-in", "Upload File", "URL", "Create Blank Model"], key="multi_model_source_radio")
-
-        if model_source == "Built-in":
-            builtin_models = {
-                "E. coli core": "e_coli_core",
-                "Textbook E. coli": "textbook",
-                "Salmonella core": "salmonella",
-                "iJO1366 (E. coli)": "iJO1366",
-                "Recon3D (Human)": "Recon3D"
-            }
-            selected_model_key = st.selectbox("Select model", list(builtin_models.keys()), key="multi_builtin_model_select")
-            model_label = st.text_input("Label for this model", value=selected_model_key, key="multi_builtin_model_label")
-
-            if st.button("Load Built-in Model", key="multi_load_builtin_btn"):
-                if model_label in st.session_state.models:
-                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
-                else:
-                    try:
-                        new_model = load_model(builtin_models[selected_model_key])
-                        st.session_state.models[model_label] = new_model
-                        st.success(f"Loaded built-in model: {selected_model_key} as '{model_label}'")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error loading model: {str(e)}")
-
-        elif model_source == "Upload File":
-            uploaded_file = st.file_uploader(
-                "Upload model (SBML/JSON/MAT)",
-                type=["xml", "json", "mat"],
-                help="Supported formats: SBML (.xml), JSON (.json), MATLAB (.mat)",
-                key="multi_uploaded_file_uploader"
-            )
-            model_label = st.text_input("Label for this model", value=uploaded_file.name.split('.')[0] if uploaded_file else "uploaded_model", key="multi_uploaded_model_label")
-
-            if st.button("Load Uploaded Model", key="multi_load_uploaded_btn") and uploaded_file:
-                if model_label in st.session_state.models:
-                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
-                else:
-                    new_model = load_model_from_file(uploaded_file)
-                    if new_model:
-                        st.session_state.models[model_label] = new_model
-                        st.rerun()
-
-        elif model_source == "URL":
-            url = st.text_input(
-                "Model URL",
-                placeholder="e.g., http://bigg.ucsd.edu/models/e_coli_core.xml",
-                help="Enter direct download URL for model file",
-                key="multi_url_input"
-            )
-            model_label = st.text_input("Label for this model", value="url_model", key="multi_url_model_label")
-
-            if st.button("Load from URL", key="multi_load_url_btn"):
-                if model_label in st.session_state.models:
-                    st.warning(f"Model with label '{model_label}' already exists. Please choose a different label.")
-                else:
-                    st.warning("URL loading requires additional implementation")
-
-        elif model_source == "Create Blank Model":
-            blank_model_label = st.text_input("Label for new blank model", value="new_model", key="multi_blank_model_label_input")
-            if st.button("Create Blank Model", key="multi_create_blank_model_btn"):
-                if blank_model_label in st.session_state.models:
-                    st.warning(f"Model with label '{blank_model_label}' already exists. Please choose a different label.")
-                else:
-                    new_blank_model = cobra.Model(id=blank_model_label)
-                    st.session_state.models[blank_model_label] = new_blank_model
-                    st.success(f"Blank model '{blank_model_label}' created.")
-                    st.rerun()
-
-    st.subheader("Currently Loaded Models")
-    if st.session_state.models:
-        for name, model_obj in st.session_state.models.items():
-            st.write(f"- **{name}**: {len(model_obj.reactions)} reactions, {len(model_obj.metabolites)} metabolites, {len(model_obj.genes)} genes")
-            with st.expander(f"View Summary for {name}", expanded=False):
-                display_model_summary(model_obj, unique_key_suffix=f"loaded_{name}")
-            if st.button(f"Remove {name}", key=f"remove_model_{name}"):
-                del st.session_state.models[name]
-                if name in st.session_state.fba_solutions:
-                    del st.session_state.fba_solutions[name]
-                if st.session_state.current_model_name == name:
-                    st.session_state.current_model_name = None
-                st.success(f"Model '{name}' removed.")
-                st.rerun()
-    else:
-        st.info("No models loaded yet.")
-
 def multi_model_analysis_tabs():
+    """Render multi-model analysis tabs."""
     model_names = list(st.session_state.models.keys())
     
     tabs = [
@@ -1402,6 +1272,7 @@ def multi_model_analysis_tabs():
             st.subheader("Essential Gene Overlap")
             if st.button("Compare Essential Genes", key="compare_essential_genes_btn"):
                 with st.spinner("Finding essential genes for both models..."):
+                    from cobra.flux_analysis import single_gene_deletion
                     
                     gene_objs1 = [model1.genes.get_by_id(g.id) for g in model1.genes]
                     essential_results1 = single_gene_deletion(model1.copy(), gene_list=gene_objs1)
@@ -1545,62 +1416,3 @@ def multi_model_analysis_tabs():
                     st.dataframe(pd.DataFrame(diff_gene_data), hide_index=True)
                 else:
                     st.info("No unique genes in Model 2.")
-
-def render_intro_content():
-    st.title("🧬 Welcome to COBRApy GUI")
-    st.markdown("This Streamlit-based graphical user interface (GUI) is designed to simplify and enhance the interaction with `COBRApy`, a powerful Python package for constraint-based reconstruction and analysis of biological networks.")
-
-    with st.expander("About"):
-        st.markdown("""
-        ### **Project Overview**
-        `COBRApy_GUI` is a Streamlit-based graphical user interface (GUI) designed to simplify and enhance the interaction with `COBRApy`, a widely used Python package for constraint-based reconstruction and analysis of biological networks. This tool provides an visual environment for performing core metabolic modeling tasks, making complex analyses more accessible to researchers who may prefer a GUI over direct command-line interaction.
-
-        ### **Features**
-        This application offers a suite of functionalities, with key `COBRApy` capabilities:
-
-        * **Model Management:**
-            * **Loading:** Supports loading metabolic models from SBML (.xml), JSON (.json), and MATLAB (.mat) formats. Includes built-in access to common `cobra` models (e.g., E. coli core, iJO1366, Recon3D).
-            * **Summary & Inspection:** Provides a detailed overview of loaded models, including counts of reactions, metabolites, and genes, along with objective function details and snippets of model components.
-            * **Export:** Allows users to export modified models back into SBML, JSON, or MATLAB formats.
-        * **Flux Analysis:**
-            * **Flux Balance Analysis (FBA):** Perform FBA to determine optimal flux distributions, with options to set objective functions and adjust reaction bounds. Visualizes flux distributions and active pathways.
-            * **Parsimonious FBA (pFBA):** Execute pFBA to identify the most parsimonious (minimal total flux) solution achieving optimal growth, offering insights into metabolic efficiency. Includes FBA vs. pFBA flux comparison.
-            * **Flux Variability Analysis (FVA):** Calculate the minimum and maximum possible flux for individual or all reactions, providing insights into reaction flexibility and robustness. Visualizes flux ranges.
-            * **Set Reaction Bounds:** Directly adjust the lower and upper bounds of individual reactions to simulate specific environmental conditions or genetic modifications.
-        * **Genetic & Reaction Manipulations:**
-            * **Gene Deletion Analysis:** Simulate the effects of single or double gene knockouts on the model's objective (e.g., growth rate), identifying essential genes and synthetic lethals.
-            * **Reaction Deletion Analysis:** Perform single or double reaction deletions to assess their impact on model performance.
-            * **Find Essential Genes:** A dedicated tool to identify genes whose deletion leads to a significant drop in growth rate (lethal).
-            * **Gene/Reaction Set Simulation:** Allows defining and simulating the deletion of multiple custom gene sets or reaction sets (pathway blocks) in batch.
-            * Visualizes growth impact of deletions and identifies lethal knockouts.
-        * **Model Diagnostics:**
-            * **Blocked Reactions:** Identify and optionally remove reactions that cannot carry any flux under defined conditions, aiding in model curation.
-            * **Consistency Check:** Verify the solvability and consistency of the metabolic model.
-        * **Reaction Details:**
-            * **Explore individual reactions:** View detailed information about any reaction, including its equation, involved metabolites with their stoichiometry, and associated genes with their GPR rules.
-        * **Data Export & Visualization:**
-            * Download FBA flux distributions, FVA results, and gene/reaction deletion analysis reports as CSV files for external analysis.
-            * Integrated Plotly visualizations for flux distributions, FVA ranges, and growth rate impacts.
-        * **Multi-Model Support:**
-            * Load and manage multiple models simultaneously.
-            * **Compare Models:** Select two loaded models and compare their objective values, top 10 fluxes, essential gene overlap, and content differences (reactions, metabolites, genes).
-        """)
-
-def main():
-    render_intro_content()
-
-    st.sidebar.header("Choose Analysis Mode")
-    st.session_state.analysis_mode = st.sidebar.radio(
-        "Select Mode",
-        ["Single Model Analysis", "Multi Model Analysis"],
-        key="analysis_mode_selector"
-    )
-
-    if st.session_state.analysis_mode == "Single Model Analysis":
-        single_model_analysis_tabs()
-    elif st.session_state.analysis_mode == "Multi Model Analysis":
-        multi_model_analysis_tabs()
-
-if __name__ == "__main__":
-    main()
-

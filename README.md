@@ -53,18 +53,42 @@ To get started with `COBRApy_GUI`, follow these steps:
     git clone https://github.com/kssrikar4/COBRApy-GUI.git
     cd COBRApy-GUI
     ```
-2.  **Create a virtual environment (recommended):**
+2.  **Create a virtual environment:**
+
+    1. Using Conda
+
+        1. Create the environment using the provided file
+        
+        ```bash
+        conda env create -f environment.yml
+        ```
+
+        2. Activate the environment
+        
+        ```bash
+        conda activate cobra
+        ```
+
+    2. Using pip
+
+        1. Create and activate a virtual environment
+        
+        ```bash
+        python3 -m venv py
+        source py/bin/activate  # On Windows, use `.\py\Scripts\activate`
+        ```
+
+        2. Install dependencies
+        
+        ```bash
+        pip install -r requirements.txt
+        ```
+
+Once the environment is set up and activated, run the Streamlit application from the terminal:
+
+3.  **Run the Streamlit application:**
     ```bash
-    python -m venv py
-    source py/bin/activate  # On Windows: `py\Scripts\activate`
-    ```
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  **Run the Streamlit application:**
-    ```bash
-    streamlit run COBRApy-GUI.py
+    streamlit run app.py
     ```
 
 This will open the application in your web browser.
