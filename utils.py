@@ -8,7 +8,7 @@ def extract_id_candidate(s: str) -> str:
     m = _PAREN_RE.search(s.strip())
     return m.group(1).strip() if m else s.strip()
 
-def resolve_reaction_id(s: str, model, fuzzycutoff: float = 0.6, max_suggestions: int = 8):
+def resolve_reaction_id(s: str, model, fuzzy_cutoff: float = 0.6, max_suggestions: int = 8):
     """
     Always return a valid reaction ID from a user/display string (or raise ValueError with suggestions).
     Resolution order:
